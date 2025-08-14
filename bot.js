@@ -2,7 +2,6 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const express = require('express');
 const bodyParser = require('body-parser');
-const DatabaseAuth = require('./db-auth');
 
 const app = express();
 app.use(bodyParser.json());
@@ -10,19 +9,14 @@ app.use(bodyParser.json());
 // Configure o ID do seu grupo aqui (será mostrado no console quando conectar)
 const TARGET_GROUP_ID = '120363401320960742@g.us';
 
-// Inicializa base de dados de autenticação
-const dbAuth = new DatabaseAuth();
-
 const client = new Client({
     authStrategy: new LocalAuth({ clientId: 'shared-session' })
 });
 
 client.on('qr', (qr) => {
-    console.log('❌ Sessão não encontrada!');
-    console.log('🔧 Execute primeiro: npm run qr-web');
-    console.log('📱 Acesse /qr no navegador para autenticar');
-    console.log('⚠️  Depois mude para npm start');
-    process.exit(1);
+    console.log('QR Code necessário - Sessão não encontrada ou inválida');
+    console.log('QR Code:', qr);
+    qrcode.generate(qr, { small: true });
 });
 
 client.on('ready', async () => {

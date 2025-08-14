@@ -27,11 +27,9 @@ const client = new Client({
 });
 
 client.on('qr', (qr) => {
-    console.log('❌ Sessão não encontrada!');
-    console.log('🔧 Execute primeiro: npm run qr-web');
-    console.log('📱 Acesse /qr no navegador para autenticar');
-    console.log('⚠️  Depois mude para npm start');
-    process.exit(1);
+    console.log('QR Code necessário - Sessão não encontrada ou inválida');
+    console.log('QR Code:', qr);
+    qrcode.generate(qr, { small: true });
 });
 
 client.on('ready', async () => {
