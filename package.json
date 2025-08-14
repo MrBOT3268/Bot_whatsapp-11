@@ -1,0 +1,28 @@
+{
+  "name": "whatsapp-aviator-bot",
+  "version": "1.0.0",
+  "description": "Bot Aviator para WhatsApp - Render Deploy",
+  "main": "bot.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node bot.js",
+    "start:both": "node start-both.js",
+    "start:bot1": "node bot1.js",
+    "auth": "node auth-local.js",
+    "qr-web": "node qr-webhook.js",
+    "save-session": "node save-session.js",
+    "test-session": "node test-session.js",
+    "dev": "nodemon bot.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.0",
+    "express": "^4.21.2",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.23.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}
