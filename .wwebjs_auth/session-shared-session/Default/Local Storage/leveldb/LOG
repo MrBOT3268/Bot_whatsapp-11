@@ -1,2 +1,5 @@
-2025/08/15-00:08:19.459 40d0 Creating DB C:\Users\Laurent Sam\Documents\GitHub\whatsapp\.wwebjs_auth\session-shared-session\Default\Local Storage\leveldb since it was missing.
-2025/08/15-00:08:19.629 40d0 Reusing MANIFEST C:\Users\Laurent Sam\Documents\GitHub\whatsapp\.wwebjs_auth\session-shared-session\Default\Local Storage\leveldb/MANIFEST-000001
+2025/08/15-01:13:14.961 4154 Reusing MANIFEST C:\Users\Laurent Sam\Documents\GitHub\Bot_whatsapp-11\.wwebjs_auth\session-shared-session\Default\Local Storage\leveldb/MANIFEST-000001
+2025/08/15-01:13:14.962 4154 Recovering log #3
+2025/08/15-01:13:14.998 4154 Reusing old log C:\Users\Laurent Sam\Documents\GitHub\Bot_whatsapp-11\.wwebjs_auth\session-shared-session\Default\Local Storage\leveldb/000003.log 
+2025/08/15-01:14:40.981 3c54 Level-0 table #5: started
+2025/08/15-01:14:41.171 3c54 Level-0 table #5: 17142 bytes OK
