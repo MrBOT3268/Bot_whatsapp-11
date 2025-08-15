@@ -1,91 +1,30 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
-const express = require('express');
-const bodyParser = require('body-parser');
+// Sistema de Estatísticas e Gamificação
+let stats = {
+    sinaisEnviados: { hoje: 0, semana: 0, total: 0 },
+    plataformas: { ElephantBet: 0, Placard: 0, '888Bet': 0, Olabet: 0, PremierBet: 0 },
+    taxaAcerto: 78.5,
+    usuarios: new Map(),
+    operacaoAtual: null
+};
 
-const app = express();
-app.use(bodyParser.json());
-
-// Configure o ID do seu grupo aqui
-const TARGET_GROUP_ID = '120363401320960742@g.us';
-
-const client = new Client({
-    authStrategy: new LocalAuth({ clientId: 'shared-session' })
-});
-
-client.on('qr', (qr) => {
-    console.log('QR Code necessário - Sessão não encontrada ou inválida');
-    console.log('QR Code:', qr);
-    qrcode.generate(qr, { small: true });
-});
-
-client.on('ready', async () => {
-    console.log('Bot conectado com sucesso!');
-    
-    // Envia mensagem para o grupo ao conectar
-    const chat = await client.getChatById(TARGET_GROUP_ID);
-    await chat.sendMessage('🤖 Bot conectado! Digite !comandos para ver as opções disponíveis.');
-});
-
-// Endpoint para receber sinais externos
-app.post('/sinal', async (req, res) => {
-    try {
-        const { mensagem } = req.body;
-        if (!mensagem) {
-            return res.status(400).send('Mensagem não fornecida.');
-        }
-        await client.sendMessage(TARGET_GROUP_ID, mensagem);
-        res.send('Sinal enviado ao grupo!');
-    } catch (error) {
-        res.status(500).send('Erro ao enviar sinal.');
+// Função para atualizar nível do usuário
+function atualizarNivelUsuario(userId) {
+    if (!stats.usuarios.has(userId)) {
+        stats.usuarios.set(userId, { mensagens: 0, nivel: 'Novato', pontos: 0 });
     }
-});
-
-const PORT = process.env.PORT || 3000;
-
-app.get('/', (req, res) => {
-    res.send('Bot WhatsApp está funcionando no Render! 🚀');
-});
-
-
-
-app.listen(PORT, () => {
-    console.log(`Servidor HTTP rodando na porta ${PORT}`);
-});
-
-// Mensagem de boas-vindas para novos membros
-client.on('group_join', async (notification) => {
-    if (notification.chatId !== TARGET_GROUP_ID) return;
+    const user = stats.usuarios.get(userId);
+    user.mensagens++;
+    user.pontos += 1;
     
-    const chat = await client.getChatById(TARGET_GROUP_ID);
-    const contact = await client.getContactById(notification.recipientIds[0]);
+    if (user.pontos >= 100) user.nivel = 'Expert';
+    else if (user.pontos >= 30) user.nivel = 'Intermediário';
+    else user.nivel = 'Novato';
     
-    const welcomeMsg = `🎉 Bem-vindo(a) ao grupo, @${contact.id.user}!
+    stats.usuarios.set(userId, user);
+}
 
-📋 Digite !regras para ver as regras do grupo
-✈️ Aqui você receberá sinais automáticos de Aviator
-
-💎 *UPGRADE PARA PREMIUM:*
-• Sinais 24h por dia
-• Taxa de acerto 85%+
-• Apenas 200 MTS/semana
-• Digite !comprar para mais info
-
-🔥 Boa sorte e bons ganhos!`;
-    
-    await chat.sendMessage(welcomeMsg, { mentions: [contact.id._serialized] });
-});
-
-client.on('message', async (message) => {
-    const chat = await message.getChat();
-    
-    // Verifica se é grupo e se é o grupo específico
-    if (!chat.isGroup || chat.id._serialized !== TARGET_GROUP_ID) return;
-    
-    const contact = await message.getContact();
-    const participants = chat.participants;
-    const isAdmin = participants.find(p => p.id._serialized === contact.id._serialized)?.isAdmin;
-    
+// Lógica completa do bot.js original
+async function handleMessage(message, chat, contact, participants, isAdmin, client) {
     // Remove mensagens com links (apenas admins podem enviar links)
     const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[^\s]+\.[a-z]{2,})/gi;
     if (urlRegex.test(message.body) && !isAdmin) {
@@ -268,41 +207,6 @@ client.on('message', async (message) => {
             message.reply(`👑 *Admins do Grupo:*\n${adminList}`, null, { mentions: admins.map(a => a.id._serialized) });
             break;
             
-        case 'bemvindo':
-            if (message.mentionedIds.length === 0) {
-                message.reply('❌ Mencione alguém para dar boas-vindas');
-                return;
-            }
-            const mentionedContact = await client.getContactById(message.mentionedIds[0]);
-            const welcomeMessage = `🎉 Bem-vindo(a) ao grupo, @${mentionedContact.id.user}!\n\n📋 Digite !regras para ver as regras do grupo\n✈️ Aqui você receberá sinais automáticos de Aviator\n\n💎 *UPGRADE PARA PREMIUM:*\n• Sinais 24h por dia\n• Taxa de acerto 85%+\n• Apenas 200 MTS/semana\n• Digite !comprar para mais info\n\n🔥 Boa sorte e bons ganhos!`;
-            message.reply(welcomeMessage, null, { mentions: [mentionedContact.id._serialized] });
-            break;
-            
-        case 'sinal':
-            if (!isAdmin) {
-                message.reply('❌ Apenas admins podem enviar sinais');
-                return;
-            }
-            const sinalMsg = args.slice(1).join(' ');
-            if (!sinalMsg) {
-                message.reply('❌ Digite uma mensagem para o sinal');
-                return;
-            }
-            const sinalFormatado = `🚨 *SINAL*\n\n${sinalMsg}\n\n⏰ ${new Date().toLocaleTimeString('pt-PT', { timeZone: 'Africa/Maputo' })}`;
-            await chat.sendMessage(sinalFormatado);
-            break;
-            
-        case 'todos':
-            if (!isAdmin) {
-                message.reply('❌ Apenas admins podem usar este comando');
-                return;
-            }
-            const allMembers = participants.filter(p => !p.isAdmin);
-            const memberMentions = allMembers.map(member => `@${member.id.user}`).join(' ');
-            const todosMessage = `📢 *ATENÇÃO TODOS OS MEMBROS*\n\n${memberMentions}\n\n🔔 Mensagem importante para o grupo!`;
-            await chat.sendMessage(todosMessage, { mentions: allMembers.map(m => m.id._serialized) });
-            break;
-            
         case 'aviator':
             const cronograma = `✈️ *CRONOGRAMA SINAIS AVIATOR* ✈️
 
@@ -417,33 +321,26 @@ ${userInfo.nivel === 'Novato' ? '• Intermediário: 30 pontos' : userInfo.nivel
             message.reply(nivelMsg, null, { mentions: [contact.id._serialized] });
             break;
     }
-});
+}
 
-client.initialize();
-
-// Sistema de Estatísticas e Gamificação
-let stats = {
-    sinaisEnviados: { hoje: 0, semana: 0, total: 0 },
-    plataformas: { ElephantBet: 0, Placard: 0, '888Bet': 0, Olabet: 0, PremierBet: 0 },
-    taxaAcerto: 78.5, // Simulada
-    usuarios: new Map(),
-    operacaoAtual: null
-};
-
-// Função para atualizar nível do usuário
-function atualizarNivelUsuario(userId) {
-    if (!stats.usuarios.has(userId)) {
-        stats.usuarios.set(userId, { mensagens: 0, nivel: 'Novato', pontos: 0 });
-    }
-    const user = stats.usuarios.get(userId);
-    user.mensagens++;
-    user.pontos += 1;
+async function handleGroupJoin(notification, client) {
+    const chat = await client.getChatById(notification.chatId);
+    const contact = await client.getContactById(notification.recipientIds[0]);
     
-    if (user.pontos >= 100) user.nivel = 'Expert';
-    else if (user.pontos >= 30) user.nivel = 'Intermediário';
-    else user.nivel = 'Novato';
+    const welcomeMsg = `🎉 Bem-vindo(a) ao grupo, @${contact.id.user}!
+
+📋 Digite !regras para ver as regras do grupo
+✈️ Aqui você receberá sinais automáticos de Aviator
+
+💎 *UPGRADE PARA PREMIUM:*
+• Sinais 24h por dia
+• Taxa de acerto 85%+
+• Apenas 200 MTS/semana
+• Digite !comprar para mais info
+
+🔥 Boa sorte e bons ganhos!`;
     
-    stats.usuarios.set(userId, user);
+    await chat.sendMessage(welcomeMsg, { mentions: [contact.id._serialized] });
 }
 
 // Função para verificar horário quente
@@ -512,7 +409,7 @@ function gerarSinalAviator() {
     }
     
     const saida = gerarMultiplicador();
-    const protecaoMults = ['1.20x', '1.30x', '1.40x', '1.50x', '1.60x', '1.70x', '1.80x', '1.90x','2.00x',];
+    const protecaoMults = ['1.20x', '1.30x', '1.40x', '1.50x', '1.60x', '1.70x', '1.80x', '1.90x','2.00x'];
     const protecao = protecaoMults[Math.floor(Math.random() * protecaoMults.length)];
     
     return {
@@ -524,7 +421,7 @@ function gerarSinalAviator() {
     };
 }
 
-async function enviarSinalAviator() {
+async function enviarSinalAviator(client, groupId) {
     try {
         const sinal = gerarSinalAviator();
         if (!sinal) return;
@@ -546,7 +443,7 @@ ${isQuente ? '\n🔥 *HORÁRIO QUENTE* - Maior atividade!' : ''}
 ⚠️ *AVISO:* Jogue com responsabilidade!
 💰 Aposte apenas o que pode perder`;
 
-        await client.sendMessage(TARGET_GROUP_ID, mensagem);
+        await client.sendMessage(groupId, mensagem);
         
         // Atualiza estatísticas
         stats.sinaisEnviados.hoje++;
@@ -568,129 +465,13 @@ ${isQuente ? '\n🔥 *HORÁRIO QUENTE* - Maior atividade!' : ''}
     }
 }
 
-// Função para anunciar início de operação
-async function anunciarInicioOperacao(plataforma, horarioInicio, horarioFim) {
-    try {
-        const chat = await client.getChatById(TARGET_GROUP_ID);
-        const participants = chat.participants.filter(p => !p.isAdmin);
-        const memberMentions = participants.map(member => `@${member.id.user}`).join(' ');
-        
-        const mensagem = `🚨 *ATENÇÃO TODOS OS MEMBROS* 🚨
-
-${memberMentions}
-
-🎯 *OPERAÇÃO INICIANDO AGORA!*
-
-✈️ *Plataforma:* ${plataforma}
-⏰ *Horário:* ${horarioInicio} - ${horarioFim}
-🔥 *Sinais automáticos ativados!*
-
-📱 Fiquem atentos aos sinais!
-💰 Boa sorte a todos!`;
-        
-        await chat.sendMessage(mensagem, { mentions: participants.map(m => m.id._serialized) });
-        console.log(`Anúncio de início: ${plataforma}`);
-    } catch (error) {
-        console.log('Erro ao anunciar início:', error);
-    }
-}
-
-// Controle de operações já anunciadas
-let operacoesAnunciadas = new Set();
-let sinaisAtivos = true;
-
-// Função para enviar publicidade premium
-async function enviarPublicidadePremium() {
-    try {
-        const publicidades = [
-            `💎 *UPGRADE PARA PREMIUM* 💎
-
-🚀 Sinais 24h por dia
-📈 Taxa de acerto 85%+
-⚡ Apenas 200 MTS/semana
-
-📱 E-Mola: 871908190
-💬 Digite !comprar para mais info`,
-            
-            `🔥 *AVIATOR PREMIUM* 🔥
-
-✅ Sinais automáticos 24/7
-✅ Suporte prioritário
-✅ Análises avançadas
-
-💰 200 MTS = 7 dias de lucro!
-📲 !comprar para ativar`,
-            
-            `⚡ *MAXIMIZE SEUS GANHOS* ⚡
-
-🎯 Premium = Mais sinais
-📊 Premium = Maior precisão
-💎 Premium = Mais lucro
-
-🔥 Apenas 200 MTS/semana
-💬 Digite !comprar agora!`
-        ];
-        
-        const publicidade = publicidades[Math.floor(Math.random() * publicidades.length)];
-        await client.sendMessage(TARGET_GROUP_ID, publicidade);
-        console.log('Publicidade premium enviada');
-    } catch (error) {
-        console.log('Erro ao enviar publicidade:', error);
-    }
-}
-
-// Inicia sistema de sinais quando o bot estiver pronto
-client.on('ready', () => {
-    // Verifica início de operações a cada minuto
-    setInterval(async () => {
-        const agora = new Date();
-        const hora = parseInt(new Date().toLocaleString('pt-PT', { timeZone: 'Africa/Maputo', hour12: false }).split(' ')[1].split(':')[0]);
-        const minuto = parseInt(new Date().toLocaleString('pt-PT', { timeZone: 'Africa/Maputo', hour12: false }).split(' ')[1].split(':')[1]);
-        const chaveHora = `${hora}:00`;
-        
-        // Verifica se é início de uma operação e ainda não foi anunciada
-        if (minuto === 0 && !operacoesAnunciadas.has(chaveHora)) {
-            let plataforma, horarioFim;
-            
-            if (hora === 6) { plataforma = 'ElephantBet'; horarioFim = '07:00'; }
-            else if (hora === 7) { plataforma = 'Placard'; horarioFim = '08:00'; }
-            else if (hora === 9) { plataforma = '888Bet'; horarioFim = '10:00'; }
-            else if (hora === 10) { plataforma = 'Olabet'; horarioFim = '11:00'; }
-            else if (hora === 12) { plataforma = 'PremierBet'; horarioFim = '13:00'; }
-            else if (hora === 13) { plataforma = 'ElephantBet'; horarioFim = '14:00'; }
-            else if (hora === 15) { plataforma = 'Placard'; horarioFim = '16:00'; }
-            else if (hora === 16) { plataforma = '888Bet'; horarioFim = '17:00'; }
-            else if (hora === 18) { plataforma = 'Olabet'; horarioFim = '19:00'; }
-            else if (hora === 19) { plataforma = 'PremierBet'; horarioFim = '20:00'; }
-            else if (hora === 21) { plataforma = 'ElephantBet'; horarioFim = '22:00'; }
-            else if (hora === 22) { plataforma = 'Placard'; horarioFim = '23:00'; }
-            
-            if (plataforma) {
-                stats.operacaoAtual = `${plataforma} (${hora}:00-${horarioFim})`;
-                await anunciarInicioOperacao(plataforma, `${hora}:00`, horarioFim);
-                operacoesAnunciadas.add(chaveHora);
-            }
-        }
-        
-        // Limpa anúncios antigos e reseta stats diárias
-        if (minuto === 0) {
-            operacoesAnunciadas.clear();
-            if (hora === 0) {
-                stats.sinaisEnviados.hoje = 0;
-                if (new Date().getDay() === 1) {
-                    stats.sinaisEnviados.semana = 0;
-                }
-            }
-        }
-    }, 60000);
+// Sistema de automação
+function startAutomation(client, groupId) {
+    let sinaisAtivos = true;
     
-    // Publicidade premium a cada 30 minutos
-    setInterval(() => {
-        enviarPublicidadePremium();
-    }, 30 * 60 * 1000);
-    
+    // Envia sinais automáticos
     setTimeout(() => {
-        if (sinaisAtivos) enviarSinalAviator();
+        if (sinaisAtivos) enviarSinalAviator(client, groupId);
         
         setInterval(() => {
             if (!sinaisAtivos) return;
@@ -704,8 +485,14 @@ client.on('ready', () => {
                 (hora >= 15 && hora < 17) || 
                 (hora >= 18 && hora < 20) || 
                 (hora >= 21 && hora < 23)) {
-                enviarSinalAviator();
+                enviarSinalAviator(client, groupId);
             }
         }, (Math.floor(Math.random() * 60) + 60) * 1000);
     }, 30000);
-});
+}
+
+module.exports = {
+    handleMessage,
+    handleGroupJoin,
+    startAutomation
+};

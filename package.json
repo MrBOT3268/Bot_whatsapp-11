@@ -10,6 +10,8 @@
     "start": "node bot.js",
     "start:both": "node start-both.js",
     "start:bot1": "node bot1.js",
+    "start:manager": "node bot-manager.js",
+    "start:dual": "node dual-bot-manager.js",
     "auth": "node auth-local.js",
     "qr-web": "node qr-webhook.js",
     "save-session": "node save-session.js",
